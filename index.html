@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>スクラム振り返り 4Ls テンプレートフォーム</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white !important; color: black !important; }
+      .print-col { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4">
+  <div class="max-w-7xl mx-auto">
+    <div class="flex items-center justify-between mb-2">
+      <h1 class="text-2xl font-bold text-indigo-400">4Ls レトロスペクティブ</h1>
+      <div class="flex gap-2 no-print">
+        <button id="clear-all-btn"
+          class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors"
+          aria-label="全てのカードをクリアする">
+          クリア
+        </button>
+        <button id="print-btn"
+          class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded text-sm transition-colors"
+          aria-label="現在のボードを印刷する">
+          🖨 印刷
+        </button>
+      </div>
+    </div>
+
+    <div class="mb-4 no-print">
+      <label for="sprint-name" class="text-sm text-gray-400 mr-2">スプリント名:</label>
+      <input id="sprint-name" type="text" placeholder="例: Sprint 42"
+        class="bg-gray-800 border border-gray-600 rounded px-3 py-1 text-sm text-gray-100 focus:outline-none focus:border-indigo-500 w-48">
+      <span class="text-sm text-gray-500 ml-4">日付:</span>
+      <input id="retro-date" type="date"
+        class="bg-gray-800 border border-gray-600 rounded px-3 py-1 text-sm text-gray-100 focus:outline-none focus:border-indigo-500 ml-2">
+    </div>
+
+    <!-- 4 columns -->
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <!-- Liked -->
+      <div class="print-col">
+        <div class="bg-green-800 rounded-t p-3">
+          <h2 class="font-bold text-green-200">👍 Liked</h2>
+          <p class="text-xs text-green-300 mt-1">良かったこと・継続したいこと</p>
+        </div>
+        <div id="liked-cards" class="bg-gray-800 min-h-48 p-2 rounded-b space-y-2"></div>
+        <button class="add-card-btn no-print mt-2 w-full bg-green-900 hover:bg-green-800 text-green-300 text-sm py-2 rounded transition-colors"
+          data-col="liked" aria-label="Likedカードを追加する">+ 追加</button>
+      </div>
+
+      <!-- Learned -->
+      <div class="print-col">
+        <div class="bg-blue-800 rounded-t p-3">
+          <h2 class="font-bold text-blue-200">📚 Learned</h2>
+          <p class="text-xs text-blue-300 mt-1">学んだこと・気づき</p>
+        </div>
+        <div id="learned-cards" class="bg-gray-800 min-h-48 p-2 rounded-b space-y-2"></div>
+        <button class="add-card-btn no-print mt-2 w-full bg-blue-900 hover:bg-blue-800 text-blue-300 text-sm py-2 rounded transition-colors"
+          data-col="learned" aria-label="Learnedカードを追加する">+ 追加</button>
+      </div>
+
+      <!-- Lacked -->
+      <div class="print-col">
+        <div class="bg-red-800 rounded-t p-3">
+          <h2 class="font-bold text-red-200">❌ Lacked</h2>
+          <p class="text-xs text-red-300 mt-1">足りなかったこと・課題</p>
+        </div>
+        <div id="lacked-cards" class="bg-gray-800 min-h-48 p-2 rounded-b space-y-2"></div>
+        <button class="add-card-btn no-print mt-2 w-full bg-red-900 hover:bg-red-800 text-red-300 text-sm py-2 rounded transition-colors"
+          data-col="lacked" aria-label="Lackedカードを追加する">+ 追加</button>
+      </div>
+
+      <!-- Longed For -->
+      <div class="print-col">
+        <div class="bg-yellow-800 rounded-t p-3">
+          <h2 class="font-bold text-yellow-200">✨ Longed For</h2>
+          <p class="text-xs text-yellow-300 mt-1">望むこと・やりたいこと</p>
+        </div>
+        <div id="longedfor-cards" class="bg-gray-800 min-h-48 p-2 rounded-b space-y-2"></div>
+        <button class="add-card-btn no-print mt-2 w-full bg-yellow-900 hover:bg-yellow-800 text-yellow-300 text-sm py-2 rounded transition-colors"
+          data-col="longedfor" aria-label="Longed Forカードを追加する">+ 追加</button>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="mt-4 bg-gray-800 rounded p-3 text-sm text-gray-400 no-print">
+      カード総数: <span id="total-cards" class="text-white font-bold">0</span>
+      投票総数: <span id="total-votes" class="text-yellow-400 font-bold">0</span>
+    </div>
+  </div>
+
+  <script>
+    const LS_KEY = '4ls-retro-data';
+    const colMeta = {
+      liked:     { color: 'green', border: 'border-green-600', bg: 'bg-green-900' },
+      learned:   { color: 'blue',  border: 'border-blue-600',  bg: 'bg-blue-900' },
+      lacked:    { color: 'red',   border: 'border-red-600',   bg: 'bg-red-900' },
+      longedfor: { color: 'yellow',border: 'border-yellow-600',bg: 'bg-yellow-900' }
+    };
+
+    let data = { liked: [], learned: [], lacked: [], longedfor: [], sprintName: '', retroDate: '' };
+
+    function loadData() {
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved) {
+        try { data = JSON.parse(saved); } catch(e) {}
+      }
+      document.getElementById('sprint-name').value = data.sprintName || '';
+      document.getElementById('retro-date').value = data.retroDate || new Date().toISOString().slice(0,10);
+      ['liked','learned','lacked','longedfor'].forEach(col => {
+        if (!data[col]) data[col] = [];
+        data[col].forEach((card, idx) => renderCard(col, card, idx));
+      });
+      updateStats();
+    }
+
+    function saveData() {
+      data.sprintName = document.getElementById('sprint-name').value;
+      data.retroDate = document.getElementById('retro-date').value;
+      localStorage.setItem(LS_KEY, JSON.stringify(data));
+      updateStats();
+    }
+
+    function renderCard(col, card, idx) {
+      const container = document.getElementById(col + '-cards');
+      const meta = colMeta[col];
+      const div = document.createElement('div');
+      div.className = `border ${meta.border} rounded p-2 bg-gray-750`;
+      div.dataset.idx = idx;
+
+      // Author input
+      const authorRow = document.createElement('div');
+      authorRow.className = 'flex items-center gap-1 mb-1';
+      const authorLabel = document.createElement('label');
+      authorLabel.htmlFor = `${col}-author-${idx}`;
+      authorLabel.className = 'text-xs text-gray-500 shrink-0';
+      authorLabel.textContent = '担当:';
+      const authorInput = document.createElement('input');
+      authorInput.type = 'text';
+      authorInput.id = `${col}-author-${idx}`;
+      authorInput.value = card.author || '';
+      authorInput.placeholder = '名前（任意）';
+      authorInput.className = 'flex-1 bg-gray-700 border-0 rounded px-1 py-0.5 text-xs text-gray-300 focus:outline-none';
+      authorInput.addEventListener('input', e => { data[col][idx].author = e.target.value; saveData(); });
+      authorRow.appendChild(authorLabel);
+      authorRow.appendChild(authorInput);
+      div.appendChild(authorRow);
+
+      // Text textarea
+      const taLabel = document.createElement('label');
+      taLabel.htmlFor = `${col}-text-${idx}`;
+      taLabel.className = 'sr-only';
+      taLabel.textContent = col + ' カード ' + (idx+1) + ' テキスト';
+      const ta = document.createElement('textarea');
+      ta.id = `${col}-text-${idx}`;
+      ta.rows = 2;
+      ta.className = 'w-full bg-gray-700 rounded p-1 text-sm text-gray-100 resize-none focus:outline-none focus:ring-1 focus:ring-gray-500';
+      ta.placeholder = '内容を入力...';
+      ta.textContent = card.text || '';
+      ta.addEventListener('input', e => { data[col][idx].text = e.target.value; saveData(); });
+      div.appendChild(taLabel);
+      div.appendChild(ta);
+
+      // Vote row
+      const voteRow = document.createElement('div');
+      voteRow.className = 'flex items-center justify-between mt-1';
+      const voteBtn = document.createElement('button');
+      voteBtn.className = 'no-print bg-gray-600 hover:bg-gray-500 rounded px-2 py-0.5 text-xs transition-colors';
+      voteBtn.setAttribute('aria-label', '👍 投票する');
+      const voteCount = document.createElement('span');
+      voteCount.className = 'text-yellow-400 font-bold text-sm ml-1';
+      voteCount.textContent = card.votes || 0;
+      voteBtn.textContent = '👍';
+      voteBtn.appendChild(voteCount);
+      voteBtn.addEventListener('click', () => {
+        data[col][idx].votes = (data[col][idx].votes || 0) + 1;
+        voteCount.textContent = data[col][idx].votes;
+        saveData();
+      });
+      const delBtn = document.createElement('button');
+      delBtn.className = 'no-print text-gray-600 hover:text-red-400 text-xs transition-colors';
+      delBtn.setAttribute('aria-label', 'カードを削除する');
+      delBtn.textContent = '✕';
+      delBtn.addEventListener('click', () => {
+        data[col].splice(idx, 1);
+        saveData();
+        rerenderCol(col);
+      });
+      voteRow.appendChild(voteBtn);
+      voteRow.appendChild(delBtn);
+      div.appendChild(voteRow);
+
+      container.appendChild(div);
+    }
+
+    function rerenderCol(col) {
+      const container = document.getElementById(col + '-cards');
+      container.textContent = '';
+      data[col].forEach((card, idx) => renderCard(col, card, idx));
+      updateStats();
+    }
+
+    function updateStats() {
+      let total = 0, votes = 0;
+      ['liked','learned','lacked','longedfor'].forEach(col => {
+        total += (data[col] || []).length;
+        votes += (data[col] || []).reduce((s, c) => s + (c.votes || 0), 0);
+      });
+      document.getElementById('total-cards').textContent = total;
+      document.getElementById('total-votes').textContent = votes;
+    }
+
+    document.querySelectorAll('.add-card-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const col = btn.dataset.col;
+        const card = { text: '', author: '', votes: 0 };
+        data[col].push(card);
+        renderCard(col, card, data[col].length - 1);
+        saveData();
+      });
+    });
+
+    document.getElementById('print-btn').addEventListener('click', () => window.print());
+
+    document.getElementById('clear-all-btn').addEventListener('click', () => {
+      if (confirm('全てのカードをクリアしますか？')) {
+        ['liked','learned','lacked','longedfor'].forEach(col => {
+          data[col] = [];
+          rerenderCol(col);
+        });
+        saveData();
+      }
+    });
+
+    document.getElementById('sprint-name').addEventListener('input', saveData);
+    document.getElementById('retro-date').addEventListener('input', saveData);
+
+    loadData();
+  </script>
+</body>
+</html>
